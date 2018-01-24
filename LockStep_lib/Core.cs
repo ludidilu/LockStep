@@ -96,8 +96,6 @@ namespace LockStep_lib
 
         public static void ServerGetCommand(int _id, int _mouseX, int _mouseY)
         {
-            Log.Write("ServerGetCommand:" + _mouseX + "   " + _mouseY);
-
             Unit unit = unitDic[_id];
 
             if (_mouseX > Constant.MAX_MOUSE_DISTANCE)
@@ -175,11 +173,7 @@ namespace LockStep_lib
                 {
                     double angle = Math.Atan2(unit.mouseY, unit.mouseX);
 
-
                     double dis = Math.Sqrt(unit.mouseX * unit.mouseX + unit.mouseY * unit.mouseY) / Constant.MAX_MOUSE_DISTANCE * Constant.MAX_SPEED;
-
-                    Log.Write("mouseX:" + unit.mouseX + "   mouseY:" + unit.mouseY + "  angle:" + angle + "    dis:" + dis);
-
 
                     double deltaX = Math.Cos(angle) * dis;
 
@@ -207,11 +201,7 @@ namespace LockStep_lib
                         unit.posY = 0;
                     }
 
-                    Log.Write("deltaX:" + deltaX + "    deltaY:" + deltaY + "     x:" + unit.posX + "    y:" + unit.posY);
-
                     unit.Fix();
-
-                    Log.Write("after     x:" + unit.posX + "    y:" + unit.posY);
                 }
             }
         }

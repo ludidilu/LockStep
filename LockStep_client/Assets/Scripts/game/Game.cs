@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using Connection;
 using LockStep_lib;
-using publicTools;
 
 public class Game : MonoBehaviour
 {
@@ -17,7 +16,13 @@ public class Game : MonoBehaviour
     private Camera mainCamera;
 
     [SerializeField]
+    private Camera uiCamera;
+
+    [SerializeField]
     private GameObject unitSource;
+
+    [SerializeField]
+    private GameObject quad;
 
     private Client client;
 
@@ -26,6 +31,8 @@ public class Game : MonoBehaviour
     private Dictionary<int, GameObject> dic = new Dictionary<int, GameObject>();
 
     private Unit myUnit;
+
+    private GameObject myGo;
 
     void Awake()
     {
@@ -40,6 +47,16 @@ public class Game : MonoBehaviour
         client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, ConfigDictionary.Instance.uid, GetData, Disconnect);
 
         client.Connect(ConnectSuccess, ConnectFail);
+
+        quad.transform.localScale = new Vector3((float)Constant.WIDTH, (float)Constant.HEIGHT, 1);
+
+        quad.transform.position = new Vector3(0.5f * (float)Constant.WIDTH, 0.5f * (float)Constant.HEIGHT, quad.transform.position.z);
+
+        downSr.gameObject.SetActive(false);
+
+        moveSr.gameObject.SetActive(false);
+
+        mainCamera.gameObject.SetActive(false);
     }
 
     private void ConnectSuccess(BinaryReader _br)
@@ -47,19 +64,6 @@ public class Game : MonoBehaviour
         id = _br.ReadInt32();
 
         Core.ClientGetRefreshCommand(_br);
-
-        IEnumerator<Unit> enumerator = Core.unitDic.Values.GetEnumerator();
-
-        while (enumerator.MoveNext())
-        {
-            Unit unit = enumerator.Current;
-
-            GameObject go = Instantiate(unitSource);
-
-            go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
-
-            dic.Add(unit.id, go);
-        }
     }
 
     private void ConnectFail()
@@ -90,8 +94,11 @@ public class Game : MonoBehaviour
                 if (unit.id == id)
                 {
                     myUnit = unit;
+
+                    myGo = go;
                 }
             }
+
 
             go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
         }
@@ -111,11 +118,16 @@ public class Game : MonoBehaviour
 
         if (myUnit != null)
         {
+            if (!mainCamera.gameObject.activeSelf)
+            {
+                mainCamera.gameObject.SetActive(true);
+            }
+
             if (Input.GetMouseButtonDown(0))
             {
                 downPos = Input.mousePosition;
 
-                Vector2 v = mainCamera.ScreenToWorldPoint(downPos);
+                Vector2 v = uiCamera.ScreenToWorldPoint(downPos);
 
                 downSr.gameObject.SetActive(true);
 
@@ -136,7 +148,7 @@ public class Game : MonoBehaviour
                     pos = Vector2.Lerp(downPos, pos, Constant.MAX_MOUSE_DISTANCE / dis);
                 }
 
-                Vector2 v = mainCamera.ScreenToWorldPoint(pos);
+                Vector2 v = uiCamera.ScreenToWorldPoint(pos);
 
                 moveSr.transform.position = new Vector3(v.x, v.y, moveSr.transform.position.z);
 
@@ -153,8 +165,6 @@ public class Game : MonoBehaviour
                             bw.Write(mouseX);
 
                             bw.Write(mouseY);
-
-                            Debug.Log("x:" + mouseX + "    y:" + mouseY);
 
                             client.Send(ms);
                         }
@@ -179,6 +189,8 @@ public class Game : MonoBehaviour
                     }
                 }
             }
+
+            mainCamera.transform.position = new Vector3(myGo.transform.position.x, myGo.transform.position.y, mainCamera.transform.position.z);
         }
     }
 }
