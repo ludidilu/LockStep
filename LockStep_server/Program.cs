@@ -12,6 +12,10 @@ namespace LockStep_server
         {
             Connection.Log.Init(Console.WriteLine);
 
+            LockStep_lib.Log.Init(Console.WriteLine);
+
+            Core.Init();
+
             Server<PlayerUnit> server = new Server<PlayerUnit>();
 
             server.Start("0.0.0.0", 1999, 100, 12000);

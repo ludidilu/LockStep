@@ -39,18 +39,18 @@ internal class BattleManager
             dic.Add(_playerUnit, tmpID);
         }
 
-        MemoryStream ms2 = Core.Login(tmpID);
+        byte[] refreshData = Core.ServerLogin(tmpID);
 
-        using (MemoryStream ms = new MemoryStream())
-        {
-            byte[] bytes = BitConverter.GetBytes(tmpID);
+        byte[] idBytes = BitConverter.GetBytes(tmpID);
 
-            ms.Write(bytes, 0, bytes.Length);
 
-            ms2.WriteTo(ms);
+        byte[] result = new byte[idBytes.Length + refreshData.Length];
 
-            return ms.ToArray();
-        }
+        Array.Copy(idBytes, result, idBytes.Length);
+
+        Array.Copy(refreshData, 0, result, idBytes.Length, refreshData.Length);
+
+        return result;
     }
 
     internal void Logout(PlayerUnit _playerUnit)
@@ -60,11 +60,41 @@ internal class BattleManager
 
     internal void ReceiveData(PlayerUnit _playerUnit, byte[] _bytes)
     {
+        int id;
 
+        if (dic.TryGetValue(_playerUnit, out id))
+        {
+            using (MemoryStream ms = new MemoryStream(_bytes))
+            {
+                using (BinaryReader br = new BinaryReader(ms))
+                {
+                    int mouseX = br.ReadInt32();
+
+                    int mouseY = br.ReadInt32();
+
+                    Core.ServerGetCommand(id, mouseX, mouseY);
+                }
+            }
+        }
     }
 
     internal void Update()
     {
+        using (MemoryStream ms = new MemoryStream())
+        {
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                Core.ServerRefreshCommand(bw);
+
+                IEnumerator<PlayerUnit> enumerator = dic.Keys.GetEnumerator();
+
+                while (enumerator.MoveNext())
+                {
+                    enumerator.Current.SendData(true, ms);
+                }
+            }
+        }
+
         Core.Update();
     }
 }

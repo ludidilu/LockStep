@@ -6,6 +6,8 @@ namespace LockStep_lib
 {
     public class Unit
     {
+        public int id;
+
         public double posX;
         public double posY;
 
@@ -15,7 +17,7 @@ namespace LockStep_lib
         public void Fix()
         {
             posX = double.Parse(posX.ToString("f4"));
-            posY = double.Parse(posX.ToString("f4"));
+            posY = double.Parse(posY.ToString("f4"));
         }
     }
 
@@ -25,70 +27,84 @@ namespace LockStep_lib
 
         private static Random random = new Random();
 
-        private static double max_mouse_distance;
+        private static List<Unit> loginList = new List<Unit>();
+
+        private static List<Unit> actionList = new List<Unit>();
+
+        private static byte[] refreshData;
 
         public static void Init()
         {
-            max_mouse_distance = Math.Sqrt(2) * Constant.MAX_MOUSE_DISTANCE;
         }
 
-        public static MemoryStream Login(int _id)
+        public static byte[] ServerLogin(int _id)
         {
+            byte[] bytes = ServerRefreshData();
+
             if (!unitDic.ContainsKey(_id))
             {
                 Unit unit = new Unit();
+
+                unit.id = _id;
 
                 unit.posX = random.NextDouble() * Constant.WIDTH;
 
                 unit.posY = random.NextDouble() * Constant.HEIGHT;
 
-                unit.mouseX = unit.mouseY = 0;
-
                 unitDic.Add(_id, unit);
+
+                loginList.Add(unit);
             }
 
-            return Refresh();
+            return bytes;
         }
 
-        public static MemoryStream Refresh()
+        public static byte[] ServerRefreshData()
         {
-            using (MemoryStream ms = new MemoryStream())
+            if (refreshData == null)
             {
-                using (BinaryWriter bw = new BinaryWriter(ms))
+                using (MemoryStream ms = new MemoryStream())
                 {
-                    bw.Write(unitDic.Count);
-
-                    IEnumerator<KeyValuePair<int, Unit>> enumerator = unitDic.GetEnumerator();
-
-                    while (enumerator.MoveNext())
+                    using (BinaryWriter bw = new BinaryWriter(ms))
                     {
-                        bw.Write(enumerator.Current.Key);
+                        bw.Write(unitDic.Count);
 
-                        Unit unit = enumerator.Current.Value;
+                        IEnumerator<KeyValuePair<int, Unit>> enumerator = unitDic.GetEnumerator();
 
-                        bw.Write(unit.posX);
+                        while (enumerator.MoveNext())
+                        {
+                            bw.Write(enumerator.Current.Key);
 
-                        bw.Write(unit.posY);
+                            Unit unit = enumerator.Current.Value;
 
-                        bw.Write(unit.mouseX);
+                            bw.Write(unit.posX);
 
-                        bw.Write(unit.mouseY);
+                            bw.Write(unit.posY);
+
+                            bw.Write(unit.mouseX);
+
+                            bw.Write(unit.mouseY);
+                        }
+
+                        refreshData = ms.ToArray();
                     }
-
-                    return ms;
                 }
             }
+
+            return refreshData;
         }
 
-        public static void GetCommand(int _id, int _mouseX, int _mouseY)
+        public static void ServerGetCommand(int _id, int _mouseX, int _mouseY)
         {
+            Log.Write("ServerGetCommand:" + _mouseX + "   " + _mouseY);
+
             Unit unit = unitDic[_id];
 
             if (_mouseX > Constant.MAX_MOUSE_DISTANCE)
             {
                 _mouseX = Constant.MAX_MOUSE_DISTANCE;
             }
-            else if (_mouseX < Constant.MAX_MOUSE_DISTANCE)
+            else if (_mouseX < -Constant.MAX_MOUSE_DISTANCE)
             {
                 _mouseX = -Constant.MAX_MOUSE_DISTANCE;
             }
@@ -97,14 +113,54 @@ namespace LockStep_lib
             {
                 _mouseY = Constant.MAX_MOUSE_DISTANCE;
             }
-            else if (_mouseY < Constant.MAX_MOUSE_DISTANCE)
+            else if (_mouseY < -Constant.MAX_MOUSE_DISTANCE)
             {
                 _mouseY = -Constant.MAX_MOUSE_DISTANCE;
             }
 
-            unit.mouseX = _mouseX;
+            if (unit.mouseX != _mouseX || unit.mouseY != _mouseY)
+            {
+                unit.mouseX = _mouseX;
 
-            unit.mouseY = _mouseY;
+                unit.mouseY = _mouseY;
+
+                actionList.Add(unit);
+            }
+        }
+
+        public static void ServerRefreshCommand(BinaryWriter _bw)
+        {
+            refreshData = null;
+
+            _bw.Write(loginList.Count);
+
+            for (int i = 0; i < loginList.Count; i++)
+            {
+                Unit unit = loginList[i];
+
+                _bw.Write(unit.id);
+
+                _bw.Write(unit.posX);
+
+                _bw.Write(unit.posY);
+            }
+
+            loginList.Clear();
+
+            _bw.Write(actionList.Count);
+
+            for (int i = 0; i < actionList.Count; i++)
+            {
+                Unit unit = actionList[i];
+
+                _bw.Write(unit.id);
+
+                _bw.Write(unit.mouseX);
+
+                _bw.Write(unit.mouseY);
+            }
+
+            actionList.Clear();
         }
 
         public static void Update()
@@ -119,9 +175,15 @@ namespace LockStep_lib
                 {
                     double angle = Math.Atan2(unit.mouseY, unit.mouseX);
 
-                    double dis = Math.Sqrt(unit.mouseX * unit.mouseX + unit.mouseY * unit.mouseY) / max_mouse_distance * Constant.MAX_SPEED;
 
-                    unit.posX += Math.Cos(angle) * dis;
+                    double dis = Math.Sqrt(unit.mouseX * unit.mouseX + unit.mouseY * unit.mouseY) / Constant.MAX_MOUSE_DISTANCE * Constant.MAX_SPEED;
+
+                    Log.Write("mouseX:" + unit.mouseX + "   mouseY:" + unit.mouseY + "  angle:" + angle + "    dis:" + dis);
+
+
+                    double deltaX = Math.Cos(angle) * dis;
+
+                    unit.posX += deltaX;
 
                     if (unit.posX > Constant.WIDTH)
                     {
@@ -132,7 +194,9 @@ namespace LockStep_lib
                         unit.posX = 0;
                     }
 
-                    unit.posY += Math.Sin(angle) * dis;
+                    double deltaY = Math.Sin(angle) * dis;
+
+                    unit.posY += deltaY;
 
                     if (unit.posY > Constant.HEIGHT)
                     {
@@ -143,8 +207,87 @@ namespace LockStep_lib
                         unit.posY = 0;
                     }
 
+                    Log.Write("deltaX:" + deltaX + "    deltaY:" + deltaY + "     x:" + unit.posX + "    y:" + unit.posY);
+
                     unit.Fix();
+
+                    Log.Write("after     x:" + unit.posX + "    y:" + unit.posY);
                 }
+            }
+        }
+
+        public static void ClientGetRefreshData(BinaryReader _br)
+        {
+            unitDic.Clear();
+
+            int num = _br.ReadInt32();
+
+            for (int i = 0; i < num; i++)
+            {
+                int id = _br.ReadInt32();
+
+                double posX = _br.ReadDouble();
+
+                double posY = _br.ReadDouble();
+
+                int mouseX = _br.ReadInt32();
+
+                int mouseY = _br.ReadInt32();
+
+                Unit unit = new Unit();
+
+                unit.id = id;
+
+                unit.posX = posX;
+
+                unit.posY = posY;
+
+                unit.mouseX = mouseX;
+
+                unit.mouseY = mouseY;
+
+                unitDic.Add(unit.id, unit);
+            }
+        }
+
+        public static void ClientGetRefreshCommand(BinaryReader _br)
+        {
+            int num = _br.ReadInt32();
+
+            for (int i = 0; i < num; i++)
+            {
+                int id = _br.ReadInt32();
+
+                double posX = _br.ReadDouble();
+
+                double posY = _br.ReadDouble();
+
+                Unit unit = new Unit();
+
+                unit.id = id;
+
+                unit.posX = posX;
+
+                unit.posY = posY;
+
+                unitDic.Add(unit.id, unit);
+            }
+
+            num = _br.ReadInt32();
+
+            for (int i = 0; i < num; i++)
+            {
+                int id = _br.ReadInt32();
+
+                int mouseX = _br.ReadInt32();
+
+                int mouseY = _br.ReadInt32();
+
+                Unit unit = unitDic[id];
+
+                unit.mouseX = mouseX;
+
+                unit.mouseY = mouseY;
             }
         }
     }

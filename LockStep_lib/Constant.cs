@@ -10,8 +10,8 @@
 
         public const double RADIUS = 1;
 
-        public const int MAX_MOUSE_DISTANCE = 20;
+        public const int MAX_MOUSE_DISTANCE = 60;
 
-        public const double MAX_SPEED = 2;
+        public const double MAX_SPEED = 0.1;
     }
 }
