@@ -18,23 +18,32 @@ namespace LockStep_server
 
             Server<PlayerUnit> server = new Server<PlayerUnit>();
 
+            server.OpenLagTest(100, 300);
+
             server.Start("0.0.0.0", 1999, 100, 12000);
 
             Stopwatch watch = new Stopwatch();
 
+            watch.Start();
+
             while (true)
             {
-                watch.Reset();
+                long t0 = watch.ElapsedMilliseconds;
 
                 server.Update();
 
                 BattleManager.Instance.Update();
 
-                watch.Stop();
+                long t1 = watch.ElapsedMilliseconds;
 
-                int time = Constant.TICK_TIME - (int)watch.ElapsedMilliseconds;
+                int deltaTime = (int)(t1 - t0);
 
-                Thread.Sleep(time);
+                int time = Constant.TICK_TIME - deltaTime;
+
+                if (time > 0)
+                {
+                    Thread.Sleep(time);
+                }
             }
         }
     }

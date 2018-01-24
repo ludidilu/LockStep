@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using Connection;
 using LockStep_lib;
+using tuple;
+using superTween;
 
 public class Game : MonoBehaviour
 {
@@ -24,15 +26,22 @@ public class Game : MonoBehaviour
     [SerializeField]
     private GameObject quad;
 
+
+    private const float tweenTime = 0.5f;
+
     private Client client;
 
     private int id;
 
-    private Dictionary<int, GameObject> dic = new Dictionary<int, GameObject>();
+    private Dictionary<int, KeyValuePair<GameObject, GameObject>> dic = new Dictionary<int, KeyValuePair<GameObject, GameObject>>();
 
     private Unit myUnit;
 
     private GameObject myGo;
+
+    private int tweenID = -1;
+
+    private List<Tuple<GameObject, Vector2, Vector2>> tweenList = new List<Tuple<GameObject, Vector2, Vector2>>();
 
     void Awake()
     {
@@ -77,37 +86,141 @@ public class Game : MonoBehaviour
 
         Core.Update();
 
+        if (tweenID != -1)
+        {
+            SuperTween.Instance.Remove(tweenID);
+
+            tweenID = -1;
+        }
+
+        tweenList.Clear();
+
         IEnumerator<Unit> enumerator = Core.unitDic.Values.GetEnumerator();
 
         while (enumerator.MoveNext())
         {
             Unit unit = enumerator.Current;
 
-            GameObject go;
+            KeyValuePair<GameObject, GameObject> pair;
 
-            if (!dic.TryGetValue(unit.id, out go))
+            if (!dic.TryGetValue(unit.id, out pair))
             {
-                go = Instantiate(unitSource);
+                GameObject real = Instantiate(unitSource);
 
-                dic.Add(unit.id, go);
+                GameObject fake = Instantiate(unitSource);
+
+                fake.GetComponent<SpriteRenderer>().color = new Color(1, 1, 1, 0.3f);
+
+                dic.Add(unit.id, new KeyValuePair<GameObject, GameObject>(real, fake));
 
                 if (unit.id == id)
                 {
                     myUnit = unit;
 
-                    myGo = go;
+                    myGo = real;
+                }
+
+                real.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
+
+                fake.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 100);
+            }
+            else
+            {
+                GameObject real = pair.Key;
+
+                GameObject fake = pair.Value;
+
+                fake.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 100);
+
+                //if (tweenV == 0)
+                //{
+                    Vector2 tv = new Vector2((float)unit.posX, (float)unit.posY);
+
+                    Vector2 v = Vector2.Lerp(real.transform.position, tv, 0.5f);
+
+                    //real.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
+
+                    real.transform.position = new Vector3(v.x, v.y, 0);
+                //}
+
+                if (unit.mouseX != 0 || unit.mouseY != 0)
+                {
+                    float angle = Mathf.Atan2(unit.mouseY, unit.mouseX);
+
+                    float dis = Mathf.Sqrt(unit.mouseX * unit.mouseX + unit.mouseY * unit.mouseY) / Constant.MAX_MOUSE_DISTANCE * (float)Constant.MAX_SPEED * tweenTime * 1000 / Constant.TICK_TIME;
+
+                    float deltaX = Mathf.Cos(angle) * dis;
+
+                    float resultX = (float)unit.posX + deltaX;
+
+                    float deltaY = Mathf.Sin(angle) * dis;
+
+                    float resultY = (float)unit.posY + deltaY;
+
+                    Tuple<GameObject, Vector2, Vector2> t = new Tuple<GameObject, Vector2, Vector2>(real, real.transform.position, new Vector2(resultX, resultY));
+
+                    tweenList.Add(t);
+
+                    tweenID = SuperTween.Instance.To(0, 1, tweenTime, TweenTo, TweenOver);
+                }
+                else
+                {
+                    //go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
+
+                    float dis = Vector2.Distance(real.transform.position, new Vector2((float)unit.posX, (float)unit.posY));
+
+                    //Debug.Log("offset:" + dis);
                 }
             }
-
-            go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
         }
-
-        mainCamera.transform.position = new Vector3(myGo.transform.position.x, myGo.transform.position.y, mainCamera.transform.position.z);
 
         if (!mainCamera.gameObject.activeSelf)
         {
             mainCamera.gameObject.SetActive(true);
+
+            mainCamera.transform.SetParent(myGo.transform, false);
+
+            mainCamera.transform.localPosition = new Vector3(0, 0, -1000);
         }
+    }
+
+    private float tweenV;
+
+    private void TweenTo(float _v)
+    {
+        tweenV = _v;
+
+        for (int i = 0; i < tweenList.Count; i++)
+        {
+            Tuple<GameObject, Vector2, Vector2> t = tweenList[i];
+
+            Vector2 v = Vector2.Lerp(t.second, t.third, _v);
+
+            if (v.x > Constant.WIDTH)
+            {
+                v.x = (float)Constant.WIDTH;
+            }
+            else if (v.x < 0)
+            {
+                v.x = 0;
+            }
+
+            if (v.y > Constant.WIDTH)
+            {
+                v.y = (float)Constant.WIDTH;
+            }
+            else if (v.y < 0)
+            {
+                v.y = 0;
+            }
+
+            t.first.transform.position = new Vector3(v.x, v.y, t.first.transform.position.z);
+        }
+    }
+
+    private void TweenOver()
+    {
+        tweenID = -1;
     }
 
     private void Disconnect()
