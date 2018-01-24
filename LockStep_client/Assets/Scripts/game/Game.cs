@@ -99,8 +99,14 @@ public class Game : MonoBehaviour
                 }
             }
 
-
             go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
+        }
+
+        mainCamera.transform.position = new Vector3(myGo.transform.position.x, myGo.transform.position.y, mainCamera.transform.position.z);
+
+        if (!mainCamera.gameObject.activeSelf)
+        {
+            mainCamera.gameObject.SetActive(true);
         }
     }
 
@@ -118,11 +124,6 @@ public class Game : MonoBehaviour
 
         if (myUnit != null)
         {
-            if (!mainCamera.gameObject.activeSelf)
-            {
-                mainCamera.gameObject.SetActive(true);
-            }
-
             if (Input.GetMouseButtonDown(0))
             {
                 downPos = Input.mousePosition;
@@ -189,8 +190,6 @@ public class Game : MonoBehaviour
                     }
                 }
             }
-
-            mainCamera.transform.position = new Vector3(myGo.transform.position.x, myGo.transform.position.y, mainCamera.transform.position.z);
         }
     }
 }
