@@ -12,6 +12,6 @@
 
         public const int MAX_MOUSE_DISTANCE = 60;
 
-        public const double MAX_SPEED = 0.1;
+        public const double MAX_SPEED = 0.05;
     }
 }

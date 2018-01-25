@@ -132,16 +132,24 @@ public class Game : MonoBehaviour
 
                 fake.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 100);
 
-                //if (tweenV == 0)
-                //{
-                    Vector2 tv = new Vector2((float)unit.posX, (float)unit.posY);
 
-                    Vector2 v = Vector2.Lerp(real.transform.position, tv, 0.5f);
 
-                    //real.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
+                Vector2 tv = new Vector2((float)unit.posX, (float)unit.posY);
 
-                    real.transform.position = new Vector3(v.x, v.y, 0);
-                //}
+                Vector2 v;
+
+                float dist = Vector2.Distance(tv, real.transform.position);
+
+                if (dist < Constant.MAX_SPEED)
+                {
+                    v = tv;
+                }
+                else
+                {
+                    v = Vector2.Lerp(real.transform.position, tv, (float)Constant.MAX_SPEED / dist);
+                }
+
+                real.transform.position = new Vector3(v.x, v.y, 0);
 
                 if (unit.mouseX != 0 || unit.mouseY != 0)
                 {
@@ -165,11 +173,7 @@ public class Game : MonoBehaviour
                 }
                 else
                 {
-                    //go.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 0);
 
-                    float dis = Vector2.Distance(real.transform.position, new Vector2((float)unit.posX, (float)unit.posY));
-
-                    //Debug.Log("offset:" + dis);
                 }
             }
         }
@@ -184,12 +188,8 @@ public class Game : MonoBehaviour
         }
     }
 
-    private float tweenV;
-
     private void TweenTo(float _v)
     {
-        tweenV = _v;
-
         for (int i = 0; i < tweenList.Count; i++)
         {
             Tuple<GameObject, Vector2, Vector2> t = tweenList[i];

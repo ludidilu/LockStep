@@ -18,7 +18,14 @@ namespace LockStep_server
 
             Server<PlayerUnit> server = new Server<PlayerUnit>();
 
-            server.OpenLagTest(100, 300);
+            if (args.Length == 2)
+            {
+                int minLagTime = int.Parse(args[0]);
+
+                int maxLagTime = int.Parse(args[1]);
+
+                server.OpenLagTest(minLagTime, maxLagTime);
+            }
 
             server.Start("0.0.0.0", 1999, 100, 12000);
 
