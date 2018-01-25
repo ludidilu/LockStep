@@ -68,11 +68,32 @@ internal class BattleManager
             {
                 using (BinaryReader br = new BinaryReader(ms))
                 {
-                    int mouseX = br.ReadInt32();
+                    byte type = br.ReadByte();
 
-                    int mouseY = br.ReadInt32();
+                    if (type == 0)
+                    {
+                        int mouseX = br.ReadInt32();
 
-                    Core.ServerGetCommand(id, mouseX, mouseY);
+                        int mouseY = br.ReadInt32();
+
+                        Core.ServerGetCommand(id, mouseX, mouseY);
+                    }
+                    else if (type == 1)
+                    {
+                        long t = br.ReadInt64();
+
+                        using (MemoryStream ms2 = new MemoryStream())
+                        {
+                            using (BinaryWriter bw = new BinaryWriter(ms2))
+                            {
+                                bw.Write((byte)1);
+
+                                bw.Write(t);
+
+                                _playerUnit.SendData(true, ms2);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -84,6 +105,8 @@ internal class BattleManager
         {
             using (BinaryWriter bw = new BinaryWriter(ms))
             {
+                bw.Write((byte)0);
+
                 Core.ServerRefreshCommand(bw);
 
                 IEnumerator<PlayerUnit> enumerator = dic.Keys.GetEnumerator();

@@ -27,6 +27,8 @@ namespace LockStep_server
                 server.OpenLagTest(minLagTime, maxLagTime);
             }
 
+            server.OpenLagTest(100, 200);
+
             server.Start("0.0.0.0", 1999, 100, 12000);
 
             Stopwatch watch = new Stopwatch();

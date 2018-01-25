@@ -5,6 +5,7 @@ using Connection;
 using LockStep_lib;
 using tuple;
 using superTween;
+using System.Diagnostics;
 
 public class Game : MonoBehaviour
 {
@@ -26,6 +27,8 @@ public class Game : MonoBehaviour
     [SerializeField]
     private GameObject quad;
 
+    [SerializeField]
+    private TextMesh tm;
 
     private const float tweenTime = 0.5f;
 
@@ -43,9 +46,11 @@ public class Game : MonoBehaviour
 
     private List<Tuple<GameObject, Vector2, Vector2>> tweenList = new List<Tuple<GameObject, Vector2, Vector2>>();
 
+    private Stopwatch watch = new Stopwatch();
+
     void Awake()
     {
-        Connection.Log.Init(Debug.Log);
+        Connection.Log.Init(UnityEngine.Debug.Log);
 
         Core.Init();
 
@@ -66,13 +71,15 @@ public class Game : MonoBehaviour
         moveSr.gameObject.SetActive(false);
 
         mainCamera.gameObject.SetActive(false);
+
+        watch.Start();
     }
 
     private void ConnectSuccess(BinaryReader _br)
     {
         id = _br.ReadInt32();
 
-        Core.ClientGetRefreshCommand(_br);
+        Core.ClientGetRefreshData(_br);
     }
 
     private void ConnectFail()
@@ -81,6 +88,29 @@ public class Game : MonoBehaviour
     }
 
     private void GetData(BinaryReader _br)
+    {
+        byte type = _br.ReadByte();
+
+        if (type == 0)
+        {
+            GetBattleData(_br);
+        }
+        else if (type == 1)
+        {
+            GetPingData(_br);
+        }
+    }
+
+    private void GetPingData(BinaryReader _br)
+    {
+        long t = _br.ReadInt64();
+
+        t = watch.ElapsedMilliseconds - t;
+
+        tm.text = t.ToString();
+    }
+
+    private void GetBattleData(BinaryReader _br)
     {
         Core.ClientGetRefreshCommand(_br);
 
@@ -230,6 +260,8 @@ public class Game : MonoBehaviour
 
     private Vector2 downPos;
 
+    private float deltaTime;
+
     // Update is called once per frame
     void Update()
     {
@@ -237,6 +269,27 @@ public class Game : MonoBehaviour
 
         if (myUnit != null)
         {
+            deltaTime += Time.deltaTime;
+
+            if(deltaTime > 0.5f)
+            {
+                deltaTime = 0;
+
+                using (MemoryStream ms2 = new MemoryStream())
+                {
+                    using (BinaryWriter bw2 = new BinaryWriter(ms2))
+                    {
+                        bw2.Write((byte)1);
+
+                        long t = watch.ElapsedMilliseconds;
+
+                        bw2.Write(t);
+
+                        client.Send(ms2);
+                    }
+                }
+            }
+
             if (Input.GetMouseButtonDown(0))
             {
                 downPos = Input.mousePosition;
@@ -276,6 +329,8 @@ public class Game : MonoBehaviour
                     {
                         using (BinaryWriter bw = new BinaryWriter(ms))
                         {
+                            bw.Write((byte)0);
+
                             bw.Write(mouseX);
 
                             bw.Write(mouseY);
@@ -295,6 +350,8 @@ public class Game : MonoBehaviour
                 {
                     using (BinaryWriter bw = new BinaryWriter(ms))
                     {
+                        bw.Write((byte)0);
+
                         bw.Write(0);
 
                         bw.Write(0);
