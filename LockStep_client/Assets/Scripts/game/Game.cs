@@ -271,7 +271,7 @@ public class Game : MonoBehaviour
         {
             deltaTime += Time.deltaTime;
 
-            if(deltaTime > 0.5f)
+            if (deltaTime > 0.5f)
             {
                 deltaTime = 0;
 
@@ -361,5 +361,14 @@ public class Game : MonoBehaviour
                 }
             }
         }
+    }
+
+    private int m_pid;
+
+    private int GetPid()
+    {
+        m_pid++;
+
+        return m_pid;
     }
 }
