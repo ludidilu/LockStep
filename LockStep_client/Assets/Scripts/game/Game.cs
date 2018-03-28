@@ -121,9 +121,9 @@ public class Game : MonoBehaviour
             SuperTween.Instance.Remove(tweenID);
 
             tweenID = -1;
-        }
 
-        tweenList.Clear();
+            tweenList.Clear();
+        }
 
         IEnumerator<Unit> enumerator = Core.unitDic.Values.GetEnumerator();
 
@@ -179,7 +179,7 @@ public class Game : MonoBehaviour
                     v = Vector2.Lerp(real.transform.position, tv, (float)Constant.MAX_SPEED / dist);
                 }
 
-                real.transform.position = new Vector3(v.x, v.y, 0);
+                //real.transform.position = new Vector3(v.x, v.y, 0);
 
                 if (unit.mouseX != 0 || unit.mouseY != 0)
                 {
@@ -198,15 +198,17 @@ public class Game : MonoBehaviour
                     Tuple<GameObject, Vector2, Vector2> t = new Tuple<GameObject, Vector2, Vector2>(real, real.transform.position, new Vector2(resultX, resultY));
 
                     tweenList.Add(t);
-
-                    tweenID = SuperTween.Instance.To(0, 1, tweenTime, TweenTo, TweenOver);
                 }
                 else
                 {
+                    Tuple<GameObject, Vector2, Vector2> t = new Tuple<GameObject, Vector2, Vector2>(real, real.transform.position, new Vector2((float)unit.posX, (float)unit.posY));
 
+                    tweenList.Add(t);
                 }
             }
         }
+
+        tweenID = SuperTween.Instance.To(0, 1, tweenTime, TweenTo, TweenOver);
 
         if (!mainCamera.gameObject.activeSelf)
         {
@@ -251,6 +253,8 @@ public class Game : MonoBehaviour
     private void TweenOver()
     {
         tweenID = -1;
+
+        tweenList.Clear();
     }
 
     private void Disconnect()
