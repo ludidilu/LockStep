@@ -66,3 +66,4 @@ Assets/Scripts/csharpLib.meta
 /UnityVS.tstd_client.sln
 /UnityVS.tstd_client.CSharp.csproj
 Assets/Plugins/*
+.vs/*

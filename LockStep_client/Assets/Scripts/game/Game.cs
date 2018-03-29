@@ -6,6 +6,7 @@ using LockStep_lib;
 using tuple;
 using superTween;
 using System.Diagnostics;
+using wwwManager;
 
 public class Game : MonoBehaviour
 {
@@ -25,10 +26,16 @@ public class Game : MonoBehaviour
     private GameObject unitSource;
 
     [SerializeField]
+    private GameObject bulletSource;
+
+    [SerializeField]
     private GameObject quad;
 
     [SerializeField]
     private TextMesh tm;
+
+    [SerializeField]
+    private float clickTime;
 
     private const float tweenTime = 0.5f;
 
@@ -38,13 +45,15 @@ public class Game : MonoBehaviour
 
     private Dictionary<int, KeyValuePair<GameObject, GameObject>> dic = new Dictionary<int, KeyValuePair<GameObject, GameObject>>();
 
+    private Dictionary<int, GameObject> bulletDic = new Dictionary<int, GameObject>();
+
     private Unit myUnit;
 
     private GameObject myGo;
 
     private int tweenID = -1;
 
-    private List<Tuple<GameObject, Vector2, Vector2>> tweenList = new List<Tuple<GameObject, Vector2, Vector2>>();
+    private List<Tuple<GameObject, Vector2, Vector2, bool>> tweenList = new List<Tuple<GameObject, Vector2, Vector2, bool>>();
 
     private Stopwatch watch = new Stopwatch();
 
@@ -54,7 +63,12 @@ public class Game : MonoBehaviour
 
         Core.Init();
 
-        ConfigDictionary.Instance.LoadLocalConfig(Path.Combine(Application.streamingAssetsPath, "local.xml"));
+        WWWManager.Instance.Load("local.xml", GetConfig);
+    }
+
+    private void GetConfig(WWW _www)
+    {
+        ConfigDictionary.Instance.SetData(_www.text);
 
         client = new Client();
 
@@ -137,9 +151,15 @@ public class Game : MonoBehaviour
             {
                 GameObject real = Instantiate(unitSource);
 
+                real.transform.localScale = new Vector3((float)Constant.RADIUS * 2, (float)Constant.RADIUS * 2, 1);
+
                 GameObject fake = Instantiate(unitSource);
 
-                fake.GetComponent<SpriteRenderer>().color = new Color(1, 1, 1, 0.3f);
+                fake.transform.localScale = new Vector3((float)Constant.RADIUS * 2, (float)Constant.RADIUS * 2, 1);
+
+                fake.SetActive(false);
+
+                fake.GetComponent<Renderer>().material.SetFloat("_Alpha", 0.3f);
 
                 dic.Add(unit.id, new KeyValuePair<GameObject, GameObject>(real, fake));
 
@@ -162,25 +182,6 @@ public class Game : MonoBehaviour
 
                 fake.transform.position = new Vector3((float)unit.posX, (float)unit.posY, 100);
 
-
-
-                Vector2 tv = new Vector2((float)unit.posX, (float)unit.posY);
-
-                Vector2 v;
-
-                float dist = Vector2.Distance(tv, real.transform.position);
-
-                if (dist < Constant.MAX_SPEED)
-                {
-                    v = tv;
-                }
-                else
-                {
-                    v = Vector2.Lerp(real.transform.position, tv, (float)Constant.MAX_SPEED / dist);
-                }
-
-                //real.transform.position = new Vector3(v.x, v.y, 0);
-
                 if (unit.mouseX != 0 || unit.mouseY != 0)
                 {
                     float angle = Mathf.Atan2(unit.mouseY, unit.mouseX);
@@ -195,22 +196,133 @@ public class Game : MonoBehaviour
 
                     float resultY = (float)unit.posY + deltaY;
 
-                    Tuple<GameObject, Vector2, Vector2> t = new Tuple<GameObject, Vector2, Vector2>(real, real.transform.position, new Vector2(resultX, resultY));
+
+
+                    Tuple<GameObject, Vector2, Vector2, bool> t = new Tuple<GameObject, Vector2, Vector2, bool>(real, real.transform.position, new Vector2(resultX, resultY), true);
 
                     tweenList.Add(t);
                 }
                 else
                 {
-                    Tuple<GameObject, Vector2, Vector2> t = new Tuple<GameObject, Vector2, Vector2>(real, real.transform.position, new Vector2((float)unit.posX, (float)unit.posY));
+                    if (real.transform.position.x != (float)unit.posX || real.transform.position.y != (float)unit.posY)
+                    {
+                        Tuple<GameObject, Vector2, Vector2, bool> t = new Tuple<GameObject, Vector2, Vector2, bool>(real, real.transform.position, new Vector2((float)unit.posX, (float)unit.posY), true);
 
-                    tweenList.Add(t);
+                        tweenList.Add(t);
+                    }
                 }
             }
         }
 
-        tweenID = SuperTween.Instance.To(0, 1, tweenTime, TweenTo, TweenOver);
+        List<int> delList = null;
 
-        if (!mainCamera.gameObject.activeSelf)
+        IEnumerator<KeyValuePair<int, KeyValuePair<GameObject, GameObject>>> enumerator4 = dic.GetEnumerator();
+
+        while (enumerator4.MoveNext())
+        {
+            if (!Core.unitDic.ContainsKey(enumerator4.Current.Key))
+            {
+                if (delList == null)
+                {
+                    delList = new List<int>();
+                }
+
+                delList = new List<int>();
+
+                delList.Add(enumerator4.Current.Key);
+            }
+        }
+
+        if (delList != null)
+        {
+            for (int i = 0; i < delList.Count; i++)
+            {
+                int id = delList[i];
+
+                KeyValuePair<GameObject, GameObject> pair = dic[id];
+
+                dic.Remove(id);
+
+                Destroy(pair.Key);
+
+                Destroy(pair.Value);
+            }
+        }
+
+
+        IEnumerator<Bullet> enumerator2 = Core.bulletDic.Values.GetEnumerator();
+
+        while (enumerator2.MoveNext())
+        {
+            Bullet bullet = enumerator2.Current;
+
+            GameObject go;
+
+            if (!bulletDic.TryGetValue(bullet.id, out go))
+            {
+                go = Instantiate(bulletSource);
+
+                go.transform.localScale = new Vector3((float)Constant.BULLET_RADIUS * 2, (float)Constant.BULLET_RADIUS * 2, 1);
+
+                bulletDic.Add(bullet.id, go);
+
+                go.transform.position = new Vector3((float)bullet.posX, (float)bullet.posY, 0);
+            }
+
+            float angle = Mathf.Atan2(bullet.mouseY, bullet.mouseX);
+
+            float dis = (float)Constant.BULLET_SPEED * tweenTime * 1000 / Constant.TICK_TIME;
+
+            float deltaX = Mathf.Cos(angle) * dis;
+
+            float resultX = (float)bullet.posX + deltaX;
+
+            float deltaY = Mathf.Sin(angle) * dis;
+
+            float resultY = (float)bullet.posY + deltaY;
+
+            Tuple<GameObject, Vector2, Vector2, bool> t = new Tuple<GameObject, Vector2, Vector2, bool>(go, go.transform.position, new Vector2(resultX, resultY), false);
+
+            tweenList.Add(t);
+        }
+
+        delList = null;
+
+        IEnumerator<KeyValuePair<int, GameObject>> enumerator3 = bulletDic.GetEnumerator();
+
+        while (enumerator3.MoveNext())
+        {
+            if (!Core.bulletDic.ContainsKey(enumerator3.Current.Key))
+            {
+                if (delList == null)
+                {
+                    delList = new List<int>();
+                }
+
+                delList.Add(enumerator3.Current.Key);
+            }
+        }
+
+        if (delList != null)
+        {
+            for (int i = 0; i < delList.Count; i++)
+            {
+                int id = delList[i];
+
+                GameObject go = bulletDic[id];
+
+                bulletDic.Remove(id);
+
+                Destroy(go);
+            }
+        }
+
+        if (tweenList.Count > 0)
+        {
+            tweenID = SuperTween.Instance.To(0, 1, tweenTime, TweenTo, TweenOver);
+        }
+
+        if (mainCamera != null && !mainCamera.gameObject.activeSelf)
         {
             mainCamera.gameObject.SetActive(true);
 
@@ -224,26 +336,28 @@ public class Game : MonoBehaviour
     {
         for (int i = 0; i < tweenList.Count; i++)
         {
-            Tuple<GameObject, Vector2, Vector2> t = tweenList[i];
+            Tuple<GameObject, Vector2, Vector2, bool> t = tweenList[i];
 
             Vector2 v = Vector2.Lerp(t.second, t.third, _v);
 
-            if (v.x > Constant.WIDTH)
+            double radius = t.fourth ? Constant.RADIUS : Constant.BULLET_RADIUS;
+
+            if (v.x + radius > Constant.WIDTH)
             {
-                v.x = (float)Constant.WIDTH;
+                v.x = (float)(Constant.WIDTH - radius);
             }
-            else if (v.x < 0)
+            else if (v.x - radius < 0)
             {
-                v.x = 0;
+                v.x = (float)radius;
             }
 
-            if (v.y > Constant.WIDTH)
+            if (v.y + radius > Constant.WIDTH)
             {
-                v.y = (float)Constant.WIDTH;
+                v.y = (float)(Constant.HEIGHT - radius);
             }
-            else if (v.y < 0)
+            else if (v.y - radius < 0)
             {
-                v.y = 0;
+                v.y = (float)radius;
             }
 
             t.first.transform.position = new Vector3(v.x, v.y, t.first.transform.position.z);
@@ -262,6 +376,10 @@ public class Game : MonoBehaviour
 
     }
 
+    private bool moveBegin = false;
+
+    private float downTime;
+
     private Vector2 downPos;
 
     private float deltaTime;
@@ -269,6 +387,11 @@ public class Game : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (client == null)
+        {
+            return;
+        }
+
         client.Update();
 
         if (myUnit != null)
@@ -298,81 +421,139 @@ public class Game : MonoBehaviour
             {
                 downPos = Input.mousePosition;
 
-                Vector2 v = uiCamera.ScreenToWorldPoint(downPos);
-
-                downSr.gameObject.SetActive(true);
-
-                moveSr.gameObject.SetActive(true);
-
-                downSr.transform.position = new Vector3(v.x, v.y, downSr.transform.position.z);
-
-                moveSr.transform.position = new Vector3(v.x, v.y, moveSr.transform.position.z);
+                downTime = Time.time;
             }
             else if (Input.GetMouseButton(0))
             {
-                Vector2 pos = Input.mousePosition;
-
-                float dis = Vector2.Distance(downPos, pos);
-
-                if (dis > Constant.MAX_MOUSE_DISTANCE)
+                if (moveBegin)
                 {
-                    pos = Vector2.Lerp(downPos, pos, Constant.MAX_MOUSE_DISTANCE / dis);
+                    Move();
                 }
-
-                Vector2 v = uiCamera.ScreenToWorldPoint(pos);
-
-                moveSr.transform.position = new Vector3(v.x, v.y, moveSr.transform.position.z);
-
-                int mouseX = (int)Mathf.Round(pos.x) - (int)downPos.x;
-
-                int mouseY = (int)Mathf.Round(pos.y) - (int)downPos.y;
-
-                if (mouseX != myUnit.mouseX || mouseY != myUnit.mouseY)
+                else if (Time.time - downTime > clickTime)
                 {
-                    using (MemoryStream ms = new MemoryStream())
-                    {
-                        using (BinaryWriter bw = new BinaryWriter(ms))
-                        {
-                            bw.Write((byte)0);
+                    moveBegin = true;
 
-                            bw.Write(mouseX);
-
-                            bw.Write(mouseY);
-
-                            client.Send(ms);
-                        }
-                    }
+                    MoveDown();
                 }
             }
             else if (Input.GetMouseButtonUp(0))
             {
-                downSr.gameObject.SetActive(false);
-
-                moveSr.gameObject.SetActive(false);
-
-                using (MemoryStream ms = new MemoryStream())
+                if (moveBegin)
                 {
-                    using (BinaryWriter bw = new BinaryWriter(ms))
-                    {
-                        bw.Write((byte)0);
+                    MoveUp();
 
-                        bw.Write(0);
-
-                        bw.Write(0);
-
-                        client.Send(ms);
-                    }
+                    moveBegin = false;
+                }
+                else
+                {
+                    Shoot();
                 }
             }
         }
     }
 
-    private int m_pid;
-
-    private int GetPid()
+    private void MoveDown()
     {
-        m_pid++;
+        Vector2 v = uiCamera.ScreenToWorldPoint(downPos);
 
-        return m_pid;
+        downSr.gameObject.SetActive(true);
+
+        moveSr.gameObject.SetActive(true);
+
+        downSr.transform.position = new Vector3(v.x, v.y, downSr.transform.position.z);
+
+        moveSr.transform.position = new Vector3(v.x, v.y, moveSr.transform.position.z);
+
+        Move();
+    }
+
+    private void Move()
+    {
+        Vector2 pos = Input.mousePosition;
+
+        float dis = Vector2.Distance(downPos, pos);
+
+        if (dis > Constant.MAX_MOUSE_DISTANCE)
+        {
+            pos = Vector2.Lerp(downPos, pos, Constant.MAX_MOUSE_DISTANCE / dis);
+        }
+
+        Vector2 v = uiCamera.ScreenToWorldPoint(pos);
+
+        moveSr.transform.position = new Vector3(v.x, v.y, moveSr.transform.position.z);
+
+        int mouseX = (int)Mathf.Round(pos.x) - (int)downPos.x;
+
+        int mouseY = (int)Mathf.Round(pos.y) - (int)downPos.y;
+
+        if (mouseX != myUnit.mouseX || mouseY != myUnit.mouseY)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryWriter bw = new BinaryWriter(ms))
+                {
+                    bw.Write((byte)0);
+
+                    bw.Write((byte)0);
+
+                    bw.Write(mouseX);
+
+                    bw.Write(mouseY);
+
+                    client.Send(ms);
+                }
+            }
+        }
+    }
+
+    private void MoveUp()
+    {
+        downSr.gameObject.SetActive(false);
+
+        moveSr.gameObject.SetActive(false);
+
+        using (MemoryStream ms = new MemoryStream())
+        {
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                bw.Write((byte)0);
+
+                bw.Write((byte)0);
+
+                bw.Write(0);
+
+                bw.Write(0);
+
+                client.Send(ms);
+            }
+        }
+    }
+
+    private void Shoot()
+    {
+        int mouseX = (int)Input.mousePosition.x - Screen.width / 2;
+
+        int mouseY = (int)Input.mousePosition.y - Screen.height / 2;
+
+        if (mouseX == 0 && mouseY == 0)
+        {
+            return;
+        }
+
+        using (MemoryStream ms = new MemoryStream())
+        {
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                bw.Write((byte)0);
+
+                bw.Write((byte)1);
+
+                bw.Write(mouseX);
+
+                bw.Write(mouseY);
+
+                client.Send(ms);
+            }
+        }
     }
 }

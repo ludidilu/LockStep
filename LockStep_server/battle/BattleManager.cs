@@ -72,11 +72,7 @@ internal class BattleManager
 
                     if (type == 0)
                     {
-                        int mouseX = br.ReadInt32();
-
-                        int mouseY = br.ReadInt32();
-
-                        Core.ServerGetCommand(id, mouseX, mouseY);
+                        Core.ServerGetCommand(id, br);
                     }
                     else if (type == 1)
                     {
