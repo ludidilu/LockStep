@@ -2,67 +2,40 @@
 using System.IO;
 using System;
 using LockStep_lib;
+using superService;
 
-internal class BattleManager
+internal class BattleManager : SuperService
 {
-    private static BattleManager _Instance;
-
-    internal static BattleManager Instance
-    {
-        get
-        {
-            if (_Instance == null)
-            {
-                _Instance = new BattleManager();
-            }
-
-            return _Instance;
-        }
-    }
+    public static BattleManager Instance;
 
     internal long tick { private set; get; }
 
-    private Dictionary<PlayerUnit, int> dic = new Dictionary<PlayerUnit, int>();
+    private Dictionary<int, PlayerUnit> dic = new Dictionary<int, PlayerUnit>();
 
-    private int id;
-
-    internal byte[] Login(PlayerUnit _playerUnit)
+    internal void Login(int _uid, PlayerUnit _unit)
     {
-        int tmpID;
-
-        if (!dic.TryGetValue(_playerUnit, out tmpID))
+        if (!dic.ContainsKey(_uid))
         {
-            id++;
-
-            tmpID = id;
-
-            dic.Add(_playerUnit, tmpID);
+            dic.Add(_uid, _unit);
+        }
+        else
+        {
+            dic[_uid] = _unit;
         }
 
-        byte[] refreshData = Core.ServerLogin(tmpID);
+        byte[] refreshData = Core.ServerLogin(_uid);
 
-        byte[] idBytes = BitConverter.GetBytes(tmpID);
-
-
-        byte[] result = new byte[idBytes.Length + refreshData.Length];
-
-        Array.Copy(idBytes, result, idBytes.Length);
-
-        Array.Copy(refreshData, 0, result, idBytes.Length, refreshData.Length);
-
-        return result;
+        SendData(_uid, false, refreshData);
     }
 
-    internal void Logout(PlayerUnit _playerUnit)
+    internal void Logout(int _uid)
     {
 
     }
 
-    internal void ReceiveData(PlayerUnit _playerUnit, byte[] _bytes)
+    internal void ReceiveData(int _playerUnit, byte[] _bytes)
     {
-        int id;
-
-        if (dic.TryGetValue(_playerUnit, out id))
+        if (dic.ContainsKey(_playerUnit))
         {
             using (MemoryStream ms = new MemoryStream(_bytes))
             {
@@ -72,7 +45,7 @@ internal class BattleManager
 
                     if (type == 0)
                     {
-                        Core.ServerGetCommand(id, br);
+                        Core.ServerGetCommand(_playerUnit, br);
                     }
                     else if (type == 1)
                     {
@@ -86,7 +59,7 @@ internal class BattleManager
 
                                 bw.Write(t);
 
-                                _playerUnit.SendData(true, ms2);
+                                SendData(_playerUnit, true, ms2.ToArray());
                             }
                         }
                     }
@@ -105,15 +78,30 @@ internal class BattleManager
 
                 Core.ServerRefreshCommand(bw);
 
-                IEnumerator<PlayerUnit> enumerator = dic.Keys.GetEnumerator();
+                IEnumerator<int> enumerator = dic.Keys.GetEnumerator();
 
                 while (enumerator.MoveNext())
                 {
-                    enumerator.Current.SendData(true, ms);
+                    SendData(enumerator.Current, true, ms.ToArray());
                 }
             }
         }
 
         Core.Update();
+    }
+
+    private void SendData(int _uid, bool _isPush, byte[] _bytes)
+    {
+        PlayerUnit unit;
+
+        if (dic.TryGetValue(_uid, out unit))
+        {
+            Action dele = delegate ()
+            {
+                unit.SendData(_isPush, _bytes);
+            };
+
+            unit.Process(dele);
+        }
     }
 }

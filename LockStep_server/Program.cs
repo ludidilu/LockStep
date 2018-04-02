@@ -16,7 +16,9 @@ namespace LockStep_server
 
             Core.Init();
 
-            Server<PlayerUnit> server = new Server<PlayerUnit>();
+            BattleManager.Instance = new BattleManager();
+
+            ServerAsync<PlayerUnit> server = new ServerAsync<PlayerUnit>();
 
             if (args.Length == 2)
             {
@@ -39,9 +41,7 @@ namespace LockStep_server
             {
                 long t0 = watch.ElapsedMilliseconds;
 
-                server.Update();
-
-                BattleManager.Instance.Update();
+                BattleManager.Instance.Process(UpdateBattleManager);
 
                 long t1 = watch.ElapsedMilliseconds;
 
@@ -54,6 +54,11 @@ namespace LockStep_server
                     Thread.Sleep(time);
                 }
             }
+        }
+
+        private static void UpdateBattleManager()
+        {
+            BattleManager.Instance.Update();
         }
     }
 }

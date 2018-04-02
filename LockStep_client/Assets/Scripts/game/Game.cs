@@ -41,8 +41,6 @@ public class Game : MonoBehaviour
 
     private Client client;
 
-    private int id;
-
     private Dictionary<int, KeyValuePair<GameObject, GameObject>> dic = new Dictionary<int, KeyValuePair<GameObject, GameObject>>();
 
     private Dictionary<int, GameObject> bulletDic = new Dictionary<int, GameObject>();
@@ -72,9 +70,9 @@ public class Game : MonoBehaviour
 
         client = new Client();
 
-        client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, ConfigDictionary.Instance.uid, GetData, Disconnect);
+        client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, GetData, Disconnect);
 
-        client.Connect(ConnectSuccess, ConnectFail);
+        client.Connect(ConnectOver);
 
         quad.transform.localScale = new Vector3((float)Constant.WIDTH, (float)Constant.HEIGHT, 1);
 
@@ -89,11 +87,20 @@ public class Game : MonoBehaviour
         watch.Start();
     }
 
-    private void ConnectSuccess(BinaryReader _br)
+    private void ConnectOver(bool _b)
     {
-        id = _br.ReadInt32();
+        if (_b)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryWriter bw = new BinaryWriter(ms))
+                {
+                    bw.Write(ConfigDictionary.Instance.uid);
 
-        Core.ClientGetRefreshData(_br);
+                    client.Send(ms, Core.ClientGetRefreshData);
+                }
+            }
+        }
     }
 
     private void ConnectFail()
@@ -163,7 +170,7 @@ public class Game : MonoBehaviour
 
                 dic.Add(unit.id, new KeyValuePair<GameObject, GameObject>(real, fake));
 
-                if (unit.id == id)
+                if (unit.id == ConfigDictionary.Instance.uid)
                 {
                     myUnit = unit;
 
