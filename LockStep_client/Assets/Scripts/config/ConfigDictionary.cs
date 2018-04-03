@@ -20,4 +20,6 @@
     public int port;
 
     public int uid;
+
+    public int localPort;
 }
