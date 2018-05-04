@@ -39,9 +39,9 @@ public class Game : MonoBehaviour
 
     private const float tweenTime = 0.5f;
 
-    //private Client client;
+    private Client client;
 
-    private ClientUdp client;
+    //private ClientUdp client;
 
     private Dictionary<int, KeyValuePair<GameObject, GameObject>> dic = new Dictionary<int, KeyValuePair<GameObject, GameObject>>();
 
@@ -70,17 +70,17 @@ public class Game : MonoBehaviour
     {
         ConfigDictionary.Instance.SetData(_www.text);
 
-        //client = new Client();
+        client = new Client();
 
-        //client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, GetData, Disconnect);
+        client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, GetData, Disconnect);
 
-        //client.Connect(ConnectOver);
+        client.Connect(ConnectOver);
 
-        client = new ClientUdp();
+        //client = new ClientUdp();
 
-        client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, ConfigDictionary.Instance.localPort, GetData);
+        //client.Init(ConfigDictionary.Instance.ip, ConfigDictionary.Instance.port, ConfigDictionary.Instance.localPort, GetData);
 
-        ConnectOver(true);
+        //ConnectOver(true);
 
         quad.transform.localScale = new Vector3((float)Constant.WIDTH, (float)Constant.HEIGHT, 1);
 

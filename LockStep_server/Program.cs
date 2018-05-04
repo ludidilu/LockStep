@@ -18,9 +18,9 @@ namespace LockStep_server
 
             BattleManager.Instance = new BattleManager();
 
-            //ServerAsync<PlayerUnit> server = new ServerAsync<PlayerUnit>();
+            ServerAsync<PlayerUnit> server = new ServerAsync<PlayerUnit>();
 
-            ServerUdp<PlayerUnit> server = new ServerUdp<PlayerUnit>();
+            //ServerUdp<PlayerUnit> server = new ServerUdp<PlayerUnit>();
 
             if (args.Length == 2)
             {
@@ -31,9 +31,11 @@ namespace LockStep_server
                 server.OpenLagTest(minLagTime, maxLagTime);
             }
 
-            //server.Start("0.0.0.0", 1999, 100, 12000);
+            //server.OpenLagTest(100, 100);
 
-            server.Start("0,0,0,0", 1999, 12000);
+            server.Start("0.0.0.0", 1999, 100, 12000);
+
+            //server.Start("0,0,0,0", 1999, 12000);
 
             Stopwatch watch = new Stopwatch();
 
