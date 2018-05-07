@@ -224,7 +224,7 @@ public class Game : MonoBehaviour
                 }
                 else
                 {
-                    if (real.transform.position.x != (float)unit.posX || real.transform.position.y != (float)unit.posY)
+                    if (Mathf.Abs(real.transform.position.x - (float)unit.posX) > 0.01f || Mathf.Abs(real.transform.position.y - (float)unit.posY) > 0.01f)
                     {
                         Tuple<GameObject, Vector2, Vector2, bool> t = new Tuple<GameObject, Vector2, Vector2, bool>(real, real.transform.position, new Vector2((float)unit.posX, (float)unit.posY), true);
 
