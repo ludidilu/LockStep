@@ -45,7 +45,7 @@ namespace LockStep_server
             {
                 long t0 = watch.ElapsedMilliseconds;
 
-                BattleManager.Instance.Process(UpdateBattleManager);
+                BattleManager.Instance.Process(BattleManager.Instance.Update);
 
                 long t1 = watch.ElapsedMilliseconds;
 
@@ -58,11 +58,6 @@ namespace LockStep_server
                     Thread.Sleep(time);
                 }
             }
-        }
-
-        private static void UpdateBattleManager()
-        {
-            BattleManager.Instance.Update();
         }
     }
 }
